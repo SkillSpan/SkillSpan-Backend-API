@@ -7,6 +7,7 @@ use App\Models\AuthSession;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class SetupCreateAdminTest extends TestCase
@@ -15,10 +16,21 @@ class SetupCreateAdminTest extends TestCase
 
     private const SECRET = 'setup-secret-123';
 
+    public function postJson($uri, array $data = [], array $headers = [], $options = 0): TestResponse
+    {
+        $secret = (string) ($data['secret'] ?? self::SECRET);
+        unset($data['secret']);
+
+        return parent::postJson($uri, $data, ['X-Internal-Secret' => $secret] + $headers, $options);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.admin_setup.secret' => self::SECRET]);
+        config([
+            'services.admin_setup.enabled' => true,
+            'services.admin_setup.secret' => self::SECRET,
+        ]);
     }
 
     private function payload(array $overrides = []): array

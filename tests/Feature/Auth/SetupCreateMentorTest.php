@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class SetupCreateMentorTest extends TestCase
@@ -16,10 +17,21 @@ class SetupCreateMentorTest extends TestCase
 
     private const SECRET = 'mentor-setup-secret-123';
 
+    public function postJson($uri, array $data = [], array $headers = [], $options = 0): TestResponse
+    {
+        $secret = (string) ($data['secret'] ?? self::SECRET);
+        unset($data['secret']);
+
+        return parent::postJson($uri, $data, ['X-Internal-Secret' => $secret] + $headers, $options);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.mentor_setup.secret' => self::SECRET]);
+        config([
+            'services.mentor_setup.enabled' => true,
+            'services.mentor_setup.secret' => self::SECRET,
+        ]);
     }
 
     private function payload(array $overrides = []): array

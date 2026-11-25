@@ -88,8 +88,9 @@ class SensitiveDataLoggingTest extends TestCase
 
         Log::shouldHaveReceived('error')
             ->withArgs(fn (string $message, array $context = []): bool => $message === 'Unhandled database query failure.'
-                && ! str_contains($context['sql'] ?? '', self::SECRET)
-                && ($context['sql'] ?? null) === 'insert into support_messages (body) values (?)')
+                && ! array_key_exists('sql', $context)
+                && ! array_key_exists('trace', $context)
+                && ($context['query_fingerprint'] ?? null) === hash('sha256', 'insert into support_messages (body) values (?)'))
             ->once();
     }
 

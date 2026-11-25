@@ -249,17 +249,19 @@ class NotificationSetupInternalEndpoints
         operationId: 'setupCreateAdmin',
         tags: ['Setup'],
         summary: 'Create an administrator account (bootstrap)',
-        description: 'Permanent bootstrap endpoint for creating admin accounts. It is gated by the '
-            .'ADMIN_SETUP_SECRET environment value supplied as the `secret` body field — this is NOT '
-            .'Sanctum authentication and the endpoint is public. The account is created active and '
+        description: 'Disabled by default. When explicitly enabled, this bootstrap endpoint is gated by the '
+            .'ADMIN_SETUP_SECRET value supplied in the X-Internal-Secret header. This is NOT Sanctum '
+            .'authentication. The account is created active and '
             .'email-verified, granted the `admin` role, and a bearer token is returned. Throttled to '
             .'5 requests per minute.',
+        parameters: [
+            new OA\Parameter(name: 'X-Internal-Secret', in: 'header', required: true, description: 'Shared ADMIN_SETUP_SECRET value.', schema: new OA\Schema(type: 'string', example: 'your-admin-setup-secret')),
+        ],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['secret', 'name', 'email', 'password'],
+                required: ['name', 'email', 'password'],
                 properties: [
-                    new OA\Property(property: 'secret', type: 'string', description: 'Shared ADMIN_SETUP_SECRET value.', example: 'your-admin-setup-secret'),
                     new OA\Property(property: 'name', type: 'string', maxLength: 255, example: 'Platform Admin'),
                     new OA\Property(property: 'email', type: 'string', format: 'email', maxLength: 255, example: 'admin@example.com'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, example: 'StrongPass123'),
@@ -318,20 +320,23 @@ class NotificationSetupInternalEndpoints
         operationId: 'setupCreateMentor',
         tags: ['Setup'],
         summary: 'Create or promote a mentor account (bootstrap)',
-        description: 'Bootstrap endpoint gated by the MENTOR_SETUP_SECRET environment value supplied as '
-            .'the `secret` body field — NOT Sanctum, and public. A missing email creates a new active, '
+        description: 'Disabled by default. When explicitly enabled, this bootstrap endpoint is gated by the '
+            .'MENTOR_SETUP_SECRET value supplied in the X-Internal-Secret header. It is NOT Sanctum '
+            .'authentication. A missing email creates a new active, '
             .'email-verified account; a `pending` account is activated; an `active` account is promoted. '
             .'Soft-deleted / suspended / deleted accounts are rejected with 422. The user\'s '
             .'ProfessionalProfile is set to type=mentor with verification_status=verified. If `password` '
             .'is supplied it always replaces the existing one (admin password-reset path); when omitted, '
             .'an existing password is left unchanged, while a newly created account gets a generated '
             .'password echoed back once. Throttled to 10 requests per minute.',
+        parameters: [
+            new OA\Parameter(name: 'X-Internal-Secret', in: 'header', required: true, description: 'Shared MENTOR_SETUP_SECRET value.', schema: new OA\Schema(type: 'string', example: 'your-mentor-setup-secret')),
+        ],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['secret', 'email'],
+                required: ['email'],
                 properties: [
-                    new OA\Property(property: 'secret', type: 'string', description: 'Shared MENTOR_SETUP_SECRET value.', example: 'your-mentor-setup-secret'),
                     new OA\Property(property: 'email', type: 'string', format: 'email', maxLength: 255, example: 'mentor@example.com'),
                     new OA\Property(property: 'name', type: 'string', nullable: true, maxLength: 255, example: 'Mona Mentor'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', nullable: true, minLength: 8, example: 'StrongPass123'),

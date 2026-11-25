@@ -171,13 +171,13 @@ return [
     'admin_setup' => [
         'secret' => env('ADMIN_SETUP_SECRET', ''),
 
-        'enabled' => (bool) env('ADMIN_SETUP_ENABLED', true),
+        'enabled' => (bool) env('ADMIN_SETUP_ENABLED', false),
     ],
 
     'mentor_setup' => [
         'secret' => env('MENTOR_SETUP_SECRET', ''),
 
-        'enabled' => (bool) env('MENTOR_SETUP_ENABLED', true),
+        'enabled' => (bool) env('MENTOR_SETUP_ENABLED', false),
     ],
 
     'internal' => [
@@ -191,6 +191,7 @@ return [
      */
     'system_pulse' => [
         'enabled' => (bool) env('SYSTEM_PULSE_ENABLED', false),
+        'token' => env('SYSTEM_PULSE_TOKEN', ''),
     ],
 
 ];
