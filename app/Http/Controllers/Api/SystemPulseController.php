@@ -19,9 +19,13 @@ class SystemPulseController extends Controller
         'syd' => 'Sydney (AU)',
     ];
 
-    public function show(): JsonResponse
+    public function show(string $token): JsonResponse
     {
-        if (! (bool) config('services.system_pulse.enabled', false)) {
+        $configuredToken = (string) config('services.system_pulse.token', '');
+
+        if (! (bool) config('services.system_pulse.enabled', false)
+            || $configuredToken === ''
+            || ! hash_equals($configuredToken, $token)) {
             abort(404);
         }
 
@@ -40,8 +44,8 @@ class SystemPulseController extends Controller
             $t1 = microtime(true);
             DB::select('select 1');
             $selectMs = round((microtime(true) - $t1) * 1000, 1);
-        } catch (Throwable $e) {
-            $error = mb_substr($e->getMessage(), 0, 160);
+        } catch (Throwable) {
+            $error = 'database probe failed';
         }
 
         return response()->json([

@@ -21,11 +21,13 @@ use App\Services\AuthService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
+use Symfony\Component\HttpFoundation\Cookie as SymfonyCookie;
 
 class AuthController extends Controller
 {
@@ -150,50 +152,52 @@ class AuthController extends Controller
             $request
         );
 
-        return response()->json([
+        $response = response()->json([
             'success' => true,
             'message' => $result['created']
                 ? 'Account created and logged in successfully with Google.'
                 : 'Logged in successfully with Google.',
-            'data' => [
+            'data' => $this->authenticatedPayload([
                 'user' => $result['user'],
-                'token' => $result['token'],
-                'token_type' => 'Bearer',
                 'is_new_user' => $result['created'],
-            ],
+            ], $result['token']),
         ]);
+
+        return $this->attachAuthCookie($response, $result['token']);
     }
 
     public function login(LoginRequest $request): JsonResponse
     {
         [$user, $tokenResult] = $this->attemptLogin($request, 'individual');
 
-        return response()->json([
+        $plainTextToken = $tokenResult->plainTextToken;
+        $response = response()->json([
             'success' => true,
             'message' => 'Logged in successfully.',
-            'data' => [
+            'data' => $this->authenticatedPayload([
                 'user' => $user->load(['roles', 'studentProfile']),
-                'token' => $tokenResult->plainTextToken,
-                'token_type' => 'Bearer',
-            ],
+            ], $plainTextToken),
         ]);
+
+        return $this->attachAuthCookie($response, $plainTextToken);
     }
 
     public function loginOrganization(LoginRequest $request): JsonResponse
     {
         [$user, $tokenResult, $organization] = $this->attemptLogin($request, 'organization');
 
-        return response()->json([
+        $plainTextToken = $tokenResult->plainTextToken;
+        $response = response()->json([
             'success' => true,
             'message' => 'Logged in successfully.',
-            'data' => [
+            'data' => $this->authenticatedPayload([
                 'user' => $user->load('roles'),
                 'organizations' => [$organization],
-                'token' => $tokenResult->plainTextToken,
-                'token_type' => 'Bearer',
                 'redirect_url' => '/company/dashboard',
-            ],
+            ], $plainTextToken),
         ]);
+
+        return $this->attachAuthCookie($response, $plainTextToken);
     }
 
     private function attemptLogin(LoginRequest $request, string $mode): array
@@ -377,7 +381,7 @@ class AuthController extends Controller
             'data' => [
                 'redirect_url' => '/login',
             ],
-        ]);
+        ])->withCookie($this->forgetAuthCookie());
     }
 
     public function logout(Request $request): JsonResponse
@@ -400,7 +404,7 @@ class AuthController extends Controller
             'data' => [
                 'redirect_url' => '/',
             ],
-        ]);
+        ])->withCookie($this->forgetAuthCookie());
     }
 
     public function logoutAll(Request $request): JsonResponse
@@ -419,7 +423,7 @@ class AuthController extends Controller
             'data' => [
                 'redirect_url' => '/login',
             ],
-        ]);
+        ])->withCookie($this->forgetAuthCookie());
     }
 
     public function updateMe(UpdateAccountRequest $request): JsonResponse
@@ -496,5 +500,41 @@ class AuthController extends Controller
             'phone' => $user->phone,
             'locale' => $user->locale,
         ];
+    }
+
+    private function authenticatedPayload(array $data, string $plainTextToken): array
+    {
+        $data['auth_mode'] = 'http_only_cookie';
+
+        if ((bool) config('auth_cookie.expose_token', false)) {
+            $data['token'] = $plainTextToken;
+            $data['token_type'] = 'Bearer';
+        }
+
+        return $data;
+    }
+
+    private function attachAuthCookie(JsonResponse $response, string $plainTextToken): JsonResponse
+    {
+        return $response->withCookie(cookie(
+            name: (string) config('auth_cookie.name'),
+            value: $plainTextToken,
+            minutes: (int) config('auth_cookie.minutes'),
+            path: (string) config('auth_cookie.path', '/'),
+            domain: config('auth_cookie.domain'),
+            secure: (bool) config('auth_cookie.secure', true),
+            httpOnly: true,
+            raw: false,
+            sameSite: (string) config('auth_cookie.same_site', 'none'),
+        ));
+    }
+
+    private function forgetAuthCookie(): SymfonyCookie
+    {
+        return Cookie::forget(
+            (string) config('auth_cookie.name'),
+            (string) config('auth_cookie.path', '/'),
+            config('auth_cookie.domain'),
+        );
     }
 }

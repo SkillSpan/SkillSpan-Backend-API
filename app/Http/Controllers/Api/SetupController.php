@@ -249,7 +249,7 @@ class SetupController extends Controller
             ], 403);
         }
 
-        if (! hash_equals($configuredSecret, (string) $request->input('secret'))) {
+        if (! hash_equals($configuredSecret, (string) $request->header('X-Internal-Secret'))) {
             Log::warning("{$label} setup rejected: invalid secret.", [
                 'ip' => $request->ip(),
             ]);

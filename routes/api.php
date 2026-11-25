@@ -334,7 +334,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/countries/{country}/universities', [ReferenceController::class, 'countryUniversities']);
     });
 
-    Route::get('/_pulse/7c1f9e2a', [SystemPulseController::class, 'show']);
+    Route::get('/_pulse/{token}', [SystemPulseController::class, 'show'])
+        ->where('token', '[A-Za-z0-9_-]{32,128}')
+        ->middleware('throttle:5,1');
 
     Route::middleware(['auth:sanctum', 'account.active'])->prefix('skills')->group(function () {
         Route::get('/taxonomy', [SkillsController::class, 'taxonomy']);

@@ -36,6 +36,7 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="GOOGLE_CLIENT_ID" value="test-client-id"/>
+        <env name="AUTH_COOKIE_EXPOSE_TOKEN" value="true"/>
 
         <env name="DATA_SCIENCE_ROADMAP_ENABLED" value="false"/>
     </php>

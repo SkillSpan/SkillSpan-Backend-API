@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AddSecurityHeaders;
+use App\Http\Middleware\AuthenticateFromHttpOnlyCookie;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureOrganizationIsApproved;
 use App\Http\Middleware\EnsureUserHasRole;
@@ -22,6 +23,13 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The API token cookie is already an opaque random credential. Sanctum
+        // must receive its original value, so Laravel's web-cookie encryption
+        // middleware must not transform or discard it.
+        $middleware->encryptCookies(except: [
+            (string) env('AUTH_COOKIE_NAME', 'skillspan_auth'),
+        ]);
+
         $middleware->trustProxies(
             at: '*',
             headers: Request::HEADER_X_FORWARDED_FOR |
@@ -38,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'account.active' => EnsureAccountIsActive::class,
         ]);
 
+        $middleware->api(prepend: [AuthenticateFromHttpOnlyCookie::class]);
         $middleware->append(AddSecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -45,8 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
             Log::error('Unhandled database query failure.', [
                 'connection' => $e->getConnectionName(),
                 'code' => (string) $e->getCode(),
-                'sql' => $e->getSql(),
-                'trace' => $e->getTraceAsString(),
+                'query_fingerprint' => hash('sha256', $e->getSql()),
             ]);
 
             return false;
