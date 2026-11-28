@@ -1,25 +1,27 @@
 # Deployment Notes — Assignment #3 (VPS Deployment)
 
-Technical notes recorded while deploying the SkillSpan API from local development to a production
-VPS using Docker.
+Technical notes recorded while deploying the SkillSpan API from local development to a Linux server
+using Docker.
 
 - **Student:** Ahmed Saqllah — 120230723
-- **Repository:** https://github.com/SkillSpan/Back-End (branch `feature/authentication`)
+- **Repository:** https://github.com/SkillSpan/SkillSpan-Backend-API (branch `feature/authentication`)
+- **Host:** iximiuz Labs — Docker Playground, Ubuntu VM (4 vCPU / 10 GiB), Docker Engine 29.9.2,
+  accessed through a browser terminal. Free tier: 1 hour of daily playtime, ephemeral disk.
 
+---
 
 ## Deployment Summary
 
-1. Created the VPS instance and opened the web terminal.
-2. Verified Git and Docker, installed them where missing.
-3. Cloned the repository on the server.
-4. Created `.env` from `.env.example` and generated the application key.
-5. Built the image and started the stack with Docker Compose.
-6. Opened TCP port 10000 and verified the API from the public URL.
+1. Started the playground VM and opened the web terminal.
+2. Verified Git and Docker (`git --version`, `docker --version`, `docker compose version`).
+3. Cloned the repository on the server (`git clone -b feature/authentication …`).
+4. Created `.env` from `.env.example` and generated the application key (`make setup`).
+5. Built the image (`docker compose build`) and started the stack (`docker compose up -d`).
+6. Published TCP port 10000 from the provider console and verified `GET /up` from the browser.
 
 ---
 
 ## Challenges and Resolutions
-
 
 ### 1. Docker daemon not running
 
@@ -39,39 +41,60 @@ application wait for it (`depends_on: condition: service_healthy`).
 
 **Problem:** every request returned HTTP 500.
 **Cause:** `APP_KEY` was empty in `.env`.
-**Resolution:** ran `docker compose run --rm --no-deps app php artisan key:generate`.
+**Resolution:** generated the key through the `make setup` target, which writes
+`APP_KEY=base64:…` into `.env` before the image is built.
 
 ### 4. Application not reachable from the internet
 
 **Problem:** `curl` worked on the server but the public URL timed out.
-**Cause:** inbound TCP 10000 was blocked by the provider's firewall.
-**Resolution:** added an inbound rule for TCP 10000 and re-tested from a browser.
+**Cause:** the port was only bound inside the VM — the provider does not expose a port until it is
+published explicitly.
+**Resolution:** published port 10000 as an HTTP tab in the provider console and re-tested from a
+browser.
+
+### 5. Published port served a blank page
+
+**Problem:** the published URL opened an empty white page, although `curl` returned the expected
+HTML.
+**Cause:** the port tab was opened on the default path `/`, which renders the Laravel welcome view
+and does not produce a meaningful page through the proxy.
+**Resolution:** created the port tab with an explicit path (`/up`), the framework health endpoint, so
+the published URL returns the `Application up` page.
+
+### 6. The free VM is temporary
+
+**Problem:** the first deployment attempt was interrupted — the free plan gives one hour of daily
+playtime, and the VM disk is ephemeral, so the instance (and the built image) is destroyed when the
+session ends.
+**Cause:** the free tier is designed for short-lived experiments.
+**Resolution:** treated the deployment as a single run: clone, build, start, verify and capture the
+evidence in one session. A full re-deployment now takes about four minutes using the commands
+documented in the README.
+
+### 7. Outbound network is filtered
+
+**Problem:** an attempt to publish the app through a Cloudflare quick tunnel failed with
+`read: connection reset by peer`.
+**Cause:** the free tier restricts outbound traffic to an allow-list of domains, and
+`api.trycloudflare.com` is not part of it.
+**Resolution:** dropped the tunnel and used the provider's own HTTP port publishing, which needs no
+outbound access.
 
 ---
 
 ## Lessons Learned
 
-> **TODO:** two or three sentences — what you would do differently next time, and what surprised you
-> about moving an application from local development to a real server.
+Moving the API from `localhost` to a real server was mostly about the environment, not the code. The
+application itself needed no change — the work was in the things around it: the database had to be a
+separate container with a health check, the application key had to exist before the first request, and
+the port had to be published before anything was visible from the outside.
 
-1. Container Immediate Crash on Startup
-   Root Cause: The CMD instruction executed php artisan migrate prior to starting the application server. Because .env.example set the database host to 127.0.0.1, the migration targeted the app container itself rather than the MySQL container, triggering an immediate failure and container exit. Additionally, a missing APP_KEY halted Laravel's bootstrap process.
+The biggest surprise was how much of the deployment is decided by the provider rather than by Docker:
+whether the port is reachable, whether the disk survives a reboot, and whether outbound traffic is
+allowed all change the procedure. Next time I would read the provider's limits (session length,
+persistence, egress) before starting, plan the whole deployment as one run, and take the screenshots
+as each step succeeds instead of afterwards.
 
-Resolution:
-
-Configured docker-compose.yml with a dedicated MySQL service and updated DB_HOST=db.
-
-Integrated a database healthcheck paired with depends_on: service_healthy to block the API service from starting until MySQL is fully operational.
-
-Added a make setup command to generate APP_KEY automatically and included an application healthcheck targeting Laravel is built-in /up route.
-
-2. Missing Documentation Files & Git Workflow Lessons
-   Root Cause: A broad \*.md pattern inside .gitignore silently excluded README.md and docs/notes.md from tracking while leaving them on the local filesystem.
-
-Best Practices Applied:
-
-Consistently verify git status and inspect remote repositories on GitHub after committing, ensuring ignore rules remain precise.
-
-Keep .env strictly out of source control and commit only .env.example.
-
-Isolate work inside feature branches and merge into main exclusively through Pull Requests to maintain repository cleanliness.
+A practical lesson about verification: `curl` inside the server is not proof of a working deployment.
+The health endpoint has to answer through the same path a user would take — the published URL — and
+that is what the final screenshot shows.

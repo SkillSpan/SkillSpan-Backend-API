@@ -10,6 +10,26 @@
 
 ------------------------------------------------------------------------
 
+## Production URL
+
+The API is deployed on a Linux VPS with Docker Compose and listens on port
+**10000**.
+
+| | |
+| --- | --- |
+| **Application** | `http://<server>:10000` — the container publishes `0.0.0.0:10000` |
+| **Health check** | `GET /up` → `Application up` (HTTP 200, ~3 ms) |
+| **Deployment host** | iximiuz Labs — Docker Playground (Ubuntu VM, 4 vCPU / 10 GiB RAM) |
+| **Live session** | <https://labs.iximiuz.com/playgrounds/docker/6b0b2c2d06cde5cf7df89c24> |
+| **Repository** | <https://github.com/SkillSpan/SkillSpan-Backend-API> |
+
+> **Note:** the deployment runs on a free temporary VM, so the public link is
+> not permanent — the instance is destroyed when the session ends. Re-deploying
+> takes about four minutes with the commands in
+> [Deploying on a VPS](#deploying-on-a-vps).
+
+------------------------------------------------------------------------
+
 ## Table of Contents
 
 1.  [What is SkillSpan?](#what-is-skillspan)
@@ -326,6 +346,65 @@ Health check:
 
 ``` text
 GET /up
+```
+
+## Deploying on a VPS
+
+The repository ships a `Dockerfile`, a `docker-compose.yml` (Laravel app +
+MySQL 8) and a `Makefile`, so a fresh Ubuntu server can run the project with
+three commands.
+
+### 1. Install Git and Docker
+
+``` bash
+sudo apt-get update && sudo apt-get install -y git
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER"     # log out and back in afterwards
+
+git --version && docker --version && docker compose version
+```
+
+### 2. Clone the repository
+
+``` bash
+git clone -b feature/authentication https://github.com/SkillSpan/SkillSpan-Backend-API.git
+cd SkillSpan-Backend-API
+```
+
+### 3. Configure the environment
+
+``` bash
+make setup      # creates .env from .env.example and generates APP_KEY
+```
+
+### 4. Build and run the containers
+
+``` bash
+docker compose build     # builds the skillspan-backend-api-app image
+docker compose up -d     # starts the app and the MySQL container in the background
+docker compose ps        # both services must report "Up (healthy)"
+```
+
+### 5. Verify the deployment
+
+``` bash
+curl -s http://localhost:10000/up      # -> "Application up"
+```
+
+Then open TCP **10000** in the provider firewall (or publish the port from the
+provider console) and browse to:
+
+``` text
+http://<server-ip>:10000/up
+```
+
+### Useful commands
+
+``` bash
+docker compose logs -f app     # follow the application logs
+docker compose down            # stop the stack
+docker compose down -v         # stop the stack and delete the database volume
+docker compose up -d --build   # rebuild after pulling new commits
 ```
 
 ------------------------------------------------------------------------
