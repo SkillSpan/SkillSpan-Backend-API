@@ -167,10 +167,17 @@ Then open `http://<server-ip>:10000/docs` in a browser.
 
 ## Production URL
 
-> **TODO:** replace the placeholders below once the deployment is live.
+| | |
+| --- | --- |
+| **Application** | `http://<server>:10000` — the container publishes `0.0.0.0:10000` |
+| **Health check** | `GET /up` → `Application up` (HTTP 200, ~3 ms) |
+| **Deployment host** | iximiuz Labs — Docker Playground (Ubuntu VM, 4 vCPU / 10 GiB RAM, Docker 29.9.2) |
+| **Live session** | <https://labs.iximiuz.com/playgrounds/docker/6b0b2c2d06cde5cf7df89c24> |
+| **Repository** | <https://github.com/SkillSpan/SkillSpan-Backend-API> |
 
-
-
+> **Note:** the deployment runs on a free temporary VM, so the public link is not permanent — the
+> instance is destroyed when the session ends. A full re-deployment takes about four minutes with the
+> commands documented above.
 
 ## Deployment Notes
 
